@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"html/template"
 	"os"
 	"path/filepath"
@@ -8,16 +9,16 @@ import (
 
 	"github.com/Ferriem/go-web/Product/datamodels"
 	"github.com/Ferriem/go-web/Product/services"
+	"github.com/Ferriem/go-web/RabbitMQ"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/mvc"
-	"github.com/kataras/iris/v12/sessions"
 )
 
 type ProductController struct {
 	Ctx            iris.Context
 	ProductService services.IProductService
 	OrderService   services.IOrderService
-	Session        *sessions.Session
+	RabbitMQ       *RabbitMQ.RabbitMQ
 }
 
 var (
@@ -84,56 +85,75 @@ func (p *ProductController) GetDetail() mvc.View {
 	}
 }
 
-func (p *ProductController) GetOrder() mvc.View {
+func (p *ProductController) GetOrder() []byte {
 	productString := p.Ctx.URLParam("productID")
 	uid := p.Ctx.GetCookie("uid")
-	productID, err := strconv.Atoi(productString)
+	productID, err := strconv.ParseInt(productString, 10, 64)
 	if err != nil {
 		p.Ctx.Application().Logger().Debug(err)
 	}
-	product, err := p.ProductService.GetProductByID(int64(productID))
+	userId, err := strconv.ParseInt(uid, 10, 64)
 	if err != nil {
 		p.Ctx.Application().Logger().Debug(err)
 	}
-	var orderID int64
-	showMessage := "Purchase failed"
-	if product.ProductNum > 0 {
-		product.ProductNum -= 1
-		err := p.ProductService.UpdateProduct(product)
-		if err != nil {
-			p.Ctx.Application().Logger().Debug(err)
-		}
-		//create order
-		userID, err := strconv.Atoi(uid)
-		if err != nil {
-			p.Ctx.Application().Logger().Debug(err)
-		}
-		order := &datamodels.Order{
-			UserId:      int64(userID),
-			ProductId:   int64(productID),
-			OrderStatus: datamodels.OrderSuccess,
-		}
-		orderID, err = p.OrderService.InsertOrder(order)
-		if err != nil {
-			p.Ctx.Application().Logger().Debug(err)
-		} else {
-			showMessage = "Purchase successful"
-		}
-		return mvc.View{
-			Layout: "shared/productLayout.html",
-			Name:   "product/result.html",
-			Data: iris.Map{
-				"orderID":     orderID,
-				"showMessage": showMessage,
-			},
-		}
+
+	message := datamodels.NewMessage(userId, productID)
+
+	byteMessage, err := json.Marshal(message)
+	if err != nil {
+		p.Ctx.Application().Logger().Debug(err)
 	}
-	return mvc.View{
-		Layout: "shared/productLayout.html",
-		Name:   "product/result.html",
-		Data: iris.Map{
-			"orderID":     orderID,
-			"showMessage": showMessage,
-		},
+
+	err = p.RabbitMQ.PublishSimple(string(byteMessage))
+	if err != nil {
+		p.Ctx.Application().Logger().Debug(err)
 	}
+
+	return []byte("true")
+
+	// product, err := p.ProductService.GetProductByID(int64(productID))
+	// if err != nil {
+	// 	p.Ctx.Application().Logger().Debug(err)
+	// }
+	// var orderID int64
+	// showMessage := "Purchase failed"
+	// if product.ProductNum > 0 {
+	// 	product.ProductNum -= 1
+	// 	err := p.ProductService.UpdateProduct(product)
+	// 	if err != nil {
+	// 		p.Ctx.Application().Logger().Debug(err)
+	// 	}
+	// 	//create order
+	// 	userID, err := strconv.Atoi(uid)
+	// 	if err != nil {
+	// 		p.Ctx.Application().Logger().Debug(err)
+	// 	}
+	// 	order := &datamodels.Order{
+	// 		UserId:      int64(userID),
+	// 		ProductId:   int64(productID),
+	// 		OrderStatus: datamodels.OrderSuccess,
+	// 	}
+	// 	orderID, err = p.OrderService.InsertOrder(order)
+	// 	if err != nil {
+	// 		p.Ctx.Application().Logger().Debug(err)
+	// 	} else {
+	// 		showMessage = "Purchase successful"
+	// 	}
+	// 	return mvc.View{
+	// 		Layout: "shared/productLayout.html",
+	// 		Name:   "product/result.html",
+	// 		Data: iris.Map{
+	// 			"orderID":     orderID,
+	// 			"showMessage": showMessage,
+	// 		},
+	// 	}
+	// }
+	// return mvc.View{
+	// 	Layout: "shared/productLayout.html",
+	// 	Name:   "product/result.html",
+	// 	Data: iris.Map{
+	// 		"orderID":     orderID,
+	// 		"showMessage": showMessage,
+	// 	},
+	// }
 }

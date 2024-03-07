@@ -8,6 +8,7 @@ import (
 	"github.com/Ferriem/go-web/Product/fronted/web/controllers"
 	"github.com/Ferriem/go-web/Product/repositories"
 	"github.com/Ferriem/go-web/Product/services"
+	"github.com/Ferriem/go-web/RabbitMQ"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/mvc"
 	"github.com/opentracing/opentracing-go/log"
@@ -46,6 +47,8 @@ func main() {
 	user.Register(ctx, userService)
 	user.Handle(new(controllers.UserController))
 
+	rabbitmq := RabbitMQ.NewRabbitMQSimple("product")
+
 	product := repositories.NewProductManager("product", db)
 	productService := services.NewProductService(product)
 	order := repositories.NewOrderManager("`order`", db)
@@ -53,7 +56,7 @@ func main() {
 	productParty := app.Party("/product")
 	productMvc := mvc.New(productParty)
 	productParty.Use(middleware.AuthConnProduct)
-	productMvc.Register(ctx, productService, orderService)
+	productMvc.Register(ctx, productService, orderService, rabbitmq)
 	productMvc.Handle(new(controllers.ProductController))
 	// start the server
 	app.Run(

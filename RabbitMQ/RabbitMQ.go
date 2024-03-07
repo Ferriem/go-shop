@@ -1,13 +1,17 @@
 package RabbitMQ
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 
+	"github.com/Ferriem/go-web/Product/datamodels"
+	"github.com/Ferriem/go-web/Product/services"
 	"github.com/streadway/amqp"
 )
 
-const MQURL = "amqp://user:user@localhost:5672/"
+const MQURL = "amqp://user:user@localhost:5672/ferriem"
 
 type RabbitMQ struct {
 	conn      *amqp.Connection
@@ -16,6 +20,7 @@ type RabbitMQ struct {
 	Exchange  string
 	Key       string
 	Mqurl     string
+	sync.Mutex
 }
 
 // create a instance of RabbitMQ
@@ -52,7 +57,9 @@ func NewRabbitMQSimple(queueName string) *RabbitMQ {
 }
 
 // publish a message
-func (r *RabbitMQ) PublishSimple(message string) {
+func (r *RabbitMQ) PublishSimple(message string) error {
+	r.Lock()
+	defer r.Unlock()
 	_, err := r.channel.QueueDeclare(
 		r.QueueName,
 		// durable
@@ -67,7 +74,7 @@ func (r *RabbitMQ) PublishSimple(message string) {
 	)
 
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	r.channel.Publish(
@@ -82,9 +89,10 @@ func (r *RabbitMQ) PublishSimple(message string) {
 			Body:        []byte(message),
 		},
 	)
+	return nil
 }
 
-func (r *RabbitMQ) ConsumeSimple() {
+func (r *RabbitMQ) ConsumeSimple(orderService services.IOrderService, productService services.IProductService) {
 	q, err := r.channel.QueueDeclare(
 		r.QueueName,
 		false,
@@ -100,7 +108,7 @@ func (r *RabbitMQ) ConsumeSimple() {
 	msgs, err := r.channel.Consume(
 		q.Name,
 		"",
-		true,
+		false,
 		false,
 		false,
 		false,
@@ -111,9 +119,32 @@ func (r *RabbitMQ) ConsumeSimple() {
 	}
 	forever := make(chan bool)
 
+	r.channel.Qos(
+		1,
+		0,
+		false,
+	)
+
 	go func() {
 		for d := range msgs {
 			log.Printf("Received a message: %s", d.Body)
+			message := &datamodels.Message{}
+			err := json.Unmarshal([]byte(d.Body), &message)
+			if err != nil {
+				fmt.Println(err)
+			}
+			_, err = orderService.InsertOrderByMessage(message)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			err = productService.SubNumberOne(message.ProductID)
+			if err != nil {
+				fmt.Println(err)
+			}
+			//if true ack all non_ack message
+			//if false ack only this message
+			d.Ack(false)
 		}
 	}()
 
