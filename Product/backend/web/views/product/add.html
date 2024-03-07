@@ -32,7 +32,19 @@
                         <div class="form-group">
                             <label class="col-sm-3 control-label">商品访问链接</label>
                             <div class="col-sm-6">
-                                <input type="text"   class="form-control" name="ProductUrl"  >
+                                <input type="text"   class="form-control" name="ProductUrl" value="{{.product.ProductUrl}}">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">商品原价</label>
+                            <div class="col-sm-6">
+                                <input type="text"   class="form-control" name="ProductPrice" value="{{.product.ProductPrice}}">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">折扣价</label>
+                            <div class="col-sm-6">
+                                <input type="text"   class="form-control" name="ProductDiscount" value="{{.product.ProductDiscount}}">
                             </div>
                         </div>
                         <div class="row xs-pt-15">

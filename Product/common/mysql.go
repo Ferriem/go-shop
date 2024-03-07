@@ -15,7 +15,7 @@ func NewMysqlConn() (DB *sql.DB, err error) {
 func GetResultRow(row *sql.Rows) map[string]string {
 	column, _ := row.Columns()
 	scanArgs := make([]interface{}, len(column))
-	values := make([]interface{}, len(column))
+	values := make([][]byte, len(column))
 	for i := range values {
 		scanArgs[i] = &values[i]
 	}
@@ -26,7 +26,7 @@ func GetResultRow(row *sql.Rows) map[string]string {
 		}
 		for i, col := range values {
 			if col != nil {
-				record[column[i]] = string(col.([]byte))
+				record[column[i]] = string(col)
 			}
 		}
 	}
@@ -43,9 +43,7 @@ func GetResultRows(rows *sql.Rows) map[int]map[string]string {
 	i := 0
 	results := make(map[int]map[string]string)
 	for rows.Next() {
-		if err := rows.Scan(scans...); err != nil {
-			panic(err)
-		}
+		rows.Scan(scans...)
 		record := make(map[string]string)
 		for k, v := range values {
 			key := column[k]

@@ -45,6 +45,7 @@ func (o *OrderManager) Conn() error {
 
 func (o *OrderManager) Insert(order *datamodels.Order) (productid int64, err error) {
 	if err = o.Conn(); err != nil {
+		return
 	}
 	sql := "INSERT " + o.table + " SET userId=?,productId=?,orderStatus=?,trackNum=?"
 	stmt, err := o.mysqlConn.Prepare(sql)

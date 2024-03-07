@@ -51,12 +51,12 @@ func (p *ProductManager) Insert(product *datamodels.Product) (productid int64, e
 		return
 	}
 
-	sql := "INSERT " + p.table + " SET productName=?,productNum=?,productImage=?,productUrl=?"
+	sql := "INSERT " + p.table + " SET productName=?,productNum=?,productImage=?,productUrl=?,productPrice=?,productDiscount=?"
 	stmt, err := p.mysqlConn.Prepare(sql)
 	if err != nil {
 		return 0, err
 	}
-	result, err := stmt.Exec(product.ProductName, product.ProductNum, product.ProductImage, product.ProductUrl)
+	result, err := stmt.Exec(product.ProductName, product.ProductNum, product.ProductImage, product.ProductUrl, product.ProductPrice, product.ProductDiscount)
 	if err != nil {
 		return 0, err
 	}
@@ -88,12 +88,12 @@ func (p *ProductManager) Update(product *datamodels.Product) error {
 		return err
 	}
 
-	sql := "UPDATE " + p.table + " SET productName=?,productNum=?,productImage=?,productUrl=? WHERE ID = ?"
+	sql := "UPDATE " + p.table + " SET productName=?,productNum=?,productImage=?,productUrl=?,productPrice=?,productDiscount=? WHERE ID = ?"
 	stmt, err := p.mysqlConn.Prepare(sql)
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(product.ProductName, product.ProductNum, product.ProductImage, product.ProductUrl, product.ID)
+	_, err = stmt.Exec(product.ProductName, product.ProductNum, product.ProductImage, product.ProductUrl, product.ProductPrice, product.ProductDiscount, product.ID)
 	if err != nil {
 		return err
 	}
